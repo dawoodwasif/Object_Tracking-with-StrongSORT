@@ -8,9 +8,13 @@ This repository implements StrongSORT which is an upgraded version of DeepSORT, 
 
 ## Initialize torchreid
 git clone https://github.com/KaiyangZhou/deep-person-reid.git
+
 cd deep-person-reid
+
 pip install -r requirements
+
 python setup.py develop
+
 cd ../
 
 ## Initialize yolov5 repositrory
