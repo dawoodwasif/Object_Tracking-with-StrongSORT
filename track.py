@@ -39,6 +39,12 @@ from strong_sort.strong_sort import StrongSORT
 # remove duplicated stream handler to avoid duplicated logging
 logging.getLogger().removeHandler(logging.getLogger().handlers[0])
 
+
+from scipy.spatial import distance
+
+  
+
+
 @torch.no_grad()
 def run(
         source='0',
@@ -112,6 +118,10 @@ def run(
     cfg = get_config()
     cfg.merge_from_file(opt.config_strongsort)
 
+    # Security features setting
+    threshold = 200
+    cars_dict = {}
+
     # Create as many strong sort instances as there are video sources
     strongsort_list = []
     for i in range(nr_sources):
@@ -138,6 +148,7 @@ def run(
     dt, seen = [0.0, 0.0, 0.0, 0.0], 0
     curr_frames, prev_frames = [None] * nr_sources, [None] * nr_sources
     for frame_idx, (path, im, im0s, vid_cap, s) in enumerate(dataset):
+
         t1 = time_sync()
         im = torch.from_numpy(im).to(device)
         im = im.half() if half else im.float()  # uint8 to fp16/32
@@ -156,6 +167,7 @@ def run(
         # Apply NMS
         pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
         dt[2] += time_sync() - t3
+
 
         # Process detections
         for i, det in enumerate(pred):  # detections per image
@@ -200,6 +212,8 @@ def run(
                 confs = det[:, 4]
                 clss = det[:, 5]
 
+                
+
                 # pass detections to strongsort
                 t4 = time_sync()
                 outputs[i] = strongsort_list[i].update(xywhs.cpu(), confs.cpu(), clss.cpu(), im0)
@@ -214,6 +228,29 @@ def run(
                         id = output[4]
                         cls = output[5]
 
+
+                        # Main code for security feature
+                        x1 = bboxes[0]
+                        y1 = bboxes[1]
+                        x2 = bboxes[2]
+                        y2 = bboxes[3]
+                        xc, yc = (x1+x2)/2, (y1+y2)/2
+                        instance = id
+                        if instance in cars_dict.keys():
+                            prev_centers = cars_dict[instance]
+                            dists = distance.cdist(prev_centers, prev_centers, 'euclidean')
+                            euclidean_distance = np.max(dists)
+                            #print("Instance no. " + str(instance) + " moved by a max of " + str(euclidean_distance))
+                            if euclidean_distance > threshold:
+                                print("Alert car number. " + str(instance) + " has moved")
+                                del cars_dict[instance]
+                            else:
+                                (cars_dict[instance]).append((xc, yc))
+                                
+
+                        else:
+                            cars_dict[instance] = [(xc, yc)]
+                            
                         if save_txt:
                             # to MOT format
                             bbox_left = output[0]
