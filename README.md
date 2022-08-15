@@ -11,7 +11,7 @@ This repository implements StrongSORT which is an upgraded version of DeepSORT, 
 
 %cd deep-person-reid
 
-!pip install -r requirements
+!pip install -r requirements.txt
 
 !python setup.py develop
 
